@@ -22,6 +22,7 @@
       width: 80%;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      text-align: center;
     }
 
     .boton {
@@ -31,15 +32,18 @@
       color: white;
       text-decoration: none;
       border-radius: 5px;
-      margin-top: 10px;
+      margin: 5px;
+      border: none;
+      cursor: pointer;
     }
 
     .boton:hover {
       background-color: #1f6391;
     }
 
-    p {
-      text-align: center;
+    input {
+      padding: 5px;
+      width: 60%;
     }
 
   </style>
@@ -52,43 +56,48 @@
   <div class="materia">
     <h2>Probabilidad y Estadística</h2>
     <p>Tarea 1</p>
-    <a class="boton" href="8791.pdf"target="_blank">
+    <a class="boton" href="8791.pdf" target="_blank">
       Ver PDF
     </a>
   </div>
+
+  <!-- RECIBO DE LUZ -->
   <div class="materia">
- <div class="materia">
-  <h2>Recibo de Luz</h2>
+    <h2>Recibo de Luz</h2>
+    <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
+    <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
+  </div>
 
-  <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
-  <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
-</div>
+  <!-- CAPTURAR -->
+  <div class="materia" id="capturar" style="display:none;">
+    <h3>Capturar Recibo</h3>
 
-<div class="materia" id="capturar" style="display:none;">
-  <h3>Capturar Recibo</h3>
+    <label>Número de servicio:</label><br>
+    <input type="text" id="numeroServicio"><br><br>
 
-  <label>Número de servicio:</label><br>
-  <input type="text" id="numeroServicio"><br><br>
+    <label>Periodo:</label><br>
+    <input type="text" id="periodo"><br><br>
 
-  <label>Periodo:</label><br>
-  <input type="text" id="periodo"><br><br>
+    <label>Lectura anterior:</label><br>
+    <input type="number" id="lecturaAnterior"><br><br>
 
-  <label>Lectura anterior:</label><br>
-  <input type="number" id="lecturaAnterior"><br><br>
+    <label>Lectura actual:</label><br>
+    <input type="number" id="lecturaActual"><br><br>
 
-  <label>Lectura actual:</label><br>
-  <input type="number" id="lecturaActual"><br><br>
+    <label>Total a pagar:</label><br>
+    <input type="number" id="total"><br><br>
 
-  <label>Total a pagar:</label><br>
-  <input type="number" id="total"><br><br>
+    <button class="boton" onclick="guardarDatos()">Guardar</button>
+    <button class="boton" onclick="cerrarTodo()">Cerrar</button>
+  </div>
 
-  <button class="boton" onclick="guardarDatos()">Guardar</button>
-</div>
-
-<div class="materia" id="ver" style="display:none;">
-  <h3>Datos Guardados</h3>
-  <div id="resultado"></div>
-</div>
+  <!-- VER -->
+  <div class="materia" id="ver" style="display:none;">
+    <h3>Datos Guardados</h3>
+    <div id="resultado"></div>
+    <br>
+    <button class="boton" onclick="cerrarTodo()">Cerrar</button>
+  </div>
 
 <script>
 function mostrarSeccion(seccion) {
@@ -131,9 +140,13 @@ function mostrarDatos() {
     <p><strong>Total a pagar:</strong> $${datos.total}</p>
   `;
 }
+
+function cerrarTodo() {
+  document.getElementById("capturar").style.display = "none";
+  document.getElementById("ver").style.display = "none";
+}
 </script>
 
-</script>
 </body>
 </html>
 
