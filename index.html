@@ -57,29 +57,51 @@
     </a>
   </div>
   <div class="materia">
-  <h2>Captura tu recibo de luz</h2>
+ <div class="materia">
+  <h2>Recibo de Luz</h2>
 
-  <form id="reciboForm">
-    <label>Número de servicio:</label><br>
-    <input type="text" id="numeroServicio"><br><br>
+  <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
+  <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
+</div>
 
-    <label>Periodo:</label><br>
-    <input type="text" id="periodo"><br><br>
+<div class="materia" id="capturar" style="display:none;">
+  <h3>Capturar Recibo</h3>
 
-    <label>Lectura anterior:</label><br>
-    <input type="number" id="lecturaAnterior"><br><br>
+  <label>Número de servicio:</label><br>
+  <input type="text" id="numeroServicio"><br><br>
 
-    <label>Lectura actual:</label><br>
-    <input type="number" id="lecturaActual"><br><br>
+  <label>Periodo:</label><br>
+  <input type="text" id="periodo"><br><br>
 
-    <label>Total a pagar:</label><br>
-    <input type="number" id="total"><br><br>
+  <label>Lectura anterior:</label><br>
+  <input type="number" id="lecturaAnterior"><br><br>
 
-    <button type="button" onclick="guardarDatos()">Guardar</button>
-  </form>
+  <label>Lectura actual:</label><br>
+  <input type="number" id="lecturaActual"><br><br>
+
+  <label>Total a pagar:</label><br>
+  <input type="number" id="total"><br><br>
+
+  <button class="boton" onclick="guardarDatos()">Guardar</button>
+</div>
+
+<div class="materia" id="ver" style="display:none;">
+  <h3>Datos Guardados</h3>
+  <div id="resultado"></div>
 </div>
 
 <script>
+function mostrarSeccion(seccion) {
+  document.getElementById("capturar").style.display = "none";
+  document.getElementById("ver").style.display = "none";
+
+  document.getElementById(seccion).style.display = "block";
+
+  if (seccion === "ver") {
+    mostrarDatos();
+  }
+}
+
 function guardarDatos() {
   const datos = {
     numeroServicio: document.getElementById("numeroServicio").value,
@@ -89,9 +111,28 @@ function guardarDatos() {
     total: document.getElementById("total").value
   };
 
-  console.log(datos);
+  localStorage.setItem("recibo", JSON.stringify(datos));
   alert("Datos guardados correctamente");
 }
+
+function mostrarDatos() {
+  const datos = JSON.parse(localStorage.getItem("recibo"));
+
+  if (!datos) {
+    document.getElementById("resultado").innerHTML = "No hay datos guardados.";
+    return;
+  }
+
+  document.getElementById("resultado").innerHTML = `
+    <p><strong>Número de servicio:</strong> ${datos.numeroServicio}</p>
+    <p><strong>Periodo:</strong> ${datos.periodo}</p>
+    <p><strong>Lectura anterior:</strong> ${datos.lecturaAnterior}</p>
+    <p><strong>Lectura actual:</strong> ${datos.lecturaActual}</p>
+    <p><strong>Total a pagar:</strong> $${datos.total}</p>
+  `;
+}
+</script>
+
 </script>
 </body>
 </html>
