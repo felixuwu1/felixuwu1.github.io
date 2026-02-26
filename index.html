@@ -3,6 +3,11 @@
 <head>
   <title>Portafolio Escolar</title>
   <meta charset="UTF-8">
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+
+  <!-- Tesseract OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
   <style>
@@ -28,15 +33,13 @@
     }
 
     .boton {
-      display: inline-block;
       padding: 10px 15px;
       background-color: #2980b9;
       color: white;
-      text-decoration: none;
       border-radius: 5px;
-      margin: 5px;
       border: none;
       cursor: pointer;
+      margin: 5px;
     }
 
     .boton:hover {
@@ -56,20 +59,85 @@
 <p><strong>Nombre:</strong> Kevin Abram Perez Valladares</p>
 
 <div class="materia">
-  <h2>Probabilidad y Estadística</h2>
-  <p>Tarea 1</p>
-  <a class="boton" href="8791.pdf" target="_blank">Ver PDF</a>
-</div>
-
-<div class="materia">
   <h2>Recibo de Luz</h2>
-  <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
-  <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
+  <input type="file" id="archivo" accept="application/pdf"><br><br>
+  <button class="boton" onclick="leerPDF()">Escanear PDF</button>
+
+  <br><br>
+
+  <label>Número de servicio:</label><br>
+  <input type="text" id="numeroServicio"><br><br>
+
+  <label>Total a pagar:</label><br>
+  <input type="number" id="total"><br><br>
 </div>
 
-<!-- CAPTURAR -->
-<div class="materia" id="capturar" style="display:none;">
-  <h3>Capturar Recibo</h3>
+<script>
+
+async function leerPDF() {
+  const archivo = document.getElementById("archivo").files[0];
+
+  if (!archivo) {
+    alert("Selecciona un PDF");
+    return;
+  }
+
+  alert("Procesando PDF...");
+
+  const reader = new FileReader();
+
+  reader.onload = async function() {
+
+    const typedarray = new Uint8Array(this.result);
+
+    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+    const pagina = await pdf.getPage(1);
+
+    const viewport = pagina.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+
+    await pagina.render({
+      canvasContext: context,
+      viewport: viewport
+    }).promise;
+
+    // Convertir página a imagen
+    const imageData = canvas.toDataURL("image/png");
+
+    // OCR
+    const { data: { text } } = await Tesseract.recognize(
+      imageData,
+      'spa'
+    );
+
+    console.log(text);
+
+    // Detectar número de servicio (12 dígitos)
+    const numeroServicio = text.match(/\d{12}/);
+    if (numeroServicio) {
+      document.getElementById("numeroServicio").value = numeroServicio[0];
+    }
+
+    // Detectar total $
+    const total = text.match(/\$\s?[\d,]+\.?\d*/);
+    if (total) {
+      document.getElementById("total").value = total[0].replace(/[^\d.]/g, "");
+    }
+
+    alert("Escaneo terminado ✔");
+  };
+
+  reader.readAsArrayBuffer(archivo);
+}
+
+</script>
+
+</body>
+</html>  <h3>Capturar Recibo</h3>
 
   <label>Subir imagen del recibo:</label><br>
   <input type="file" id="archivo" accept="image/*"><br><br>
