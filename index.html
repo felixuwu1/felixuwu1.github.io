@@ -1,95 +1,67 @@
-     <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
-  <title>Portafolio Escolar</title>
   <meta charset="UTF-8">
+  <title>Sistema de Recibos CFE</title>
 
   <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 
-  <!-- Tesseract OCR -->
+  <!-- OCR -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f2f5;
-      padding: 20px;
-    }
-
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-    }
-
-    .materia {
-      background: white;
-      padding: 20px;
-      margin: 20px auto;
-      width: 80%;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-
-    .boton {
-      padding: 10px 15px;
-      background-color: #2980b9;
-      color: white;
-      border-radius: 5px;
-      border: none;
-      cursor: pointer;
-      margin: 5px;
-    }
-
-    .boton:hover {
-      background-color: #1f6391;
-    }
-
-    input {
-      padding: 5px;
-      width: 60%;
-    }
+    body { font-family: Arial; background:#f0f2f5; padding:20px; }
+    .card { background:white; padding:20px; margin:20px auto;
+            width:90%; border-radius:10px;
+            box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+    input { width:70%; padding:6px; margin-bottom:10px; }
+    button { padding:8px 12px; margin:5px;
+             background:#2980b9; color:white;
+             border:none; border-radius:5px; cursor:pointer; }
+    button:hover { background:#1f6391; }
+    .recibo { background:#f9f9f9; padding:10px;
+              margin:10px 0; border-radius:8px; }
+    .eliminar { background:#c0392b; }
+    .eliminar:hover { background:#922b21; }
+    .borrarTodo { background:#7f8c8d; }
   </style>
 </head>
 
 <body>
 
-<h1>Mi Portafolio Escolar</h1>
-<p><strong>Nombre:</strong> Kevin Abram Perez Valladares</p>
+<div class="card">
+  <h2>Sistema de Recibos de Luz</h2>
 
-<div class="materia">
-  <h2>Recibo de Luz</h2>
-  <input type="file" id="archivo" accept="application/pdf"><br><br>
-  <button class="boton" onclick="leerPDF()">Escanear PDF</button>
+  <input type="file" id="archivo" accept="application/pdf">
+  <button onclick="leerPDF()">Escanear PDF</button>
+  <button class="borrarTodo" onclick="borrarTodo()">Borrar Todo</button>
 
-  <br><br>
+  <hr>
 
-  <label>Número de servicio:</label><br>
-  <input type="text" id="numeroServicio"><br><br>
-
-  <label>Total a pagar:</label><br>
-  <input type="number" id="total"><br><br>
+  <h3>Recibos Guardados</h3>
+  <div id="listaRecibos"></div>
 </div>
 
 <script>
 
-async function leerPDF() {
-  const archivo = document.getElementById("archivo").files[0];
+let textoOCR = "";
 
+async function leerPDF() {
+
+  const archivo = document.getElementById("archivo").files[0];
   if (!archivo) {
     alert("Selecciona un PDF");
     return;
   }
 
-  alert("Procesando PDF...");
+  alert("Escaneando... espera");
 
   const reader = new FileReader();
 
   reader.onload = async function() {
 
     const typedarray = new Uint8Array(this.result);
-
     const pdf = await pdfjsLib.getDocument(typedarray).promise;
     const pagina = await pdf.getPage(1);
 
@@ -105,36 +77,83 @@ async function leerPDF() {
       viewport: viewport
     }).promise;
 
-    // Convertir página a imagen
     const imageData = canvas.toDataURL("image/png");
 
-    // OCR
-    const { data: { text } } = await Tesseract.recognize(
-      imageData,
-      'spa'
-    );
+    const { data: { text } } = await Tesseract.recognize(imageData, 'spa');
 
-    console.log(text);
-
-    // Detectar número de servicio (12 dígitos)
-    const numeroServicio = text.match(/\d{12}/);
-    if (numeroServicio) {
-      document.getElementById("numeroServicio").value = numeroServicio[0];
-    }
-
-    // Detectar total $
-    const total = text.match(/\$\s?[\d,]+\.?\d*/);
-    if (total) {
-      document.getElementById("total").value = total[0].replace(/[^\d.]/g, "");
-    }
-
-    alert("Escaneo terminado ✔");
+    textoOCR = text;
+    extraerDatos(text);
   };
 
   reader.readAsArrayBuffer(archivo);
 }
 
+function extraerDatos(text) {
+
+  const numeroServicio = text.match(/\d{12}/);
+  const periodo = text.match(/\d{2}\/\d{2}\/\d{4}\s?-\s?\d{2}\/\d{2}\/\d{4}/);
+  const consumo = text.match(/\d+\s?kWh/);
+  const total = text.match(/\$\s?[\d,]+\.\d{2}/g);
+
+  const recibo = {
+    numeroServicio: numeroServicio ? numeroServicio[0] : "No detectado",
+    periodo: periodo ? periodo[0] : "No detectado",
+    consumo: consumo ? consumo[0] : "No detectado",
+    total: total ? total[total.length-1] : "No detectado"
+  };
+
+  guardarRecibo(recibo);
+}
+
+function guardarRecibo(recibo) {
+
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  recibos.push(recibo);
+  localStorage.setItem("recibos", JSON.stringify(recibos));
+
+  mostrarRecibos();
+  alert("Recibo guardado ✔");
+}
+
+function mostrarRecibos() {
+
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  const lista = document.getElementById("listaRecibos");
+  lista.innerHTML = "";
+
+  recibos.forEach((r, index) => {
+    lista.innerHTML += `
+      <div class="recibo">
+        <strong>No. Servicio:</strong> ${r.numeroServicio}<br>
+        <strong>Periodo:</strong> ${r.periodo}<br>
+        <strong>Consumo:</strong> ${r.consumo}<br>
+        <strong>Total:</strong> ${r.total}<br>
+        <button class="eliminar" onclick="eliminarRecibo(${index})">Eliminar</button>
+      </div>
+    `;
+  });
+}
+
+function eliminarRecibo(index) {
+
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  recibos.splice(index, 1);
+  localStorage.setItem("recibos", JSON.stringify(recibos));
+
+  mostrarRecibos();
+}
+
+function borrarTodo() {
+
+  if (confirm("¿Seguro que quieres borrar todos los recibos?")) {
+    localStorage.removeItem("recibos");
+    mostrarRecibos();
+  }
+}
+
+mostrarRecibos();
+
 </script>
 
 </body>
-</html>   
+</html>
