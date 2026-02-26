@@ -3,6 +3,8 @@
 <head>
   <title>Portafolio Escolar</title>
   <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -45,25 +47,146 @@
       padding: 5px;
       width: 60%;
     }
-
   </style>
 </head>
+
 <body>
 
-  <h1>Mi Portafolio Escolar</h1>
-  <p><strong>Nombre:</strong> Kevin Abram Perez Valladares</p>
+<h1>Mi Portafolio Escolar</h1>
+<p><strong>Nombre:</strong> Kevin Abram Perez Valladares</p>
 
-  <div class="materia">
-    <h2>Probabilidad y Estadística</h2>
-    <p>Tarea 1</p>
-    <a class="boton" href="8791.pdf" target="_blank">
-      Ver PDF
-    </a>
-  </div>
+<div class="materia">
+  <h2>Probabilidad y Estadística</h2>
+  <p>Tarea 1</p>
+  <a class="boton" href="8791.pdf" target="_blank">Ver PDF</a>
+</div>
 
-  <!-- RECIBO DE LUZ -->
-  <div class="materia">
-    <h2>Recibo de Luz</h2>
+<div class="materia">
+  <h2>Recibo de Luz</h2>
+  <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
+  <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
+</div>
+
+<!-- CAPTURAR -->
+<div class="materia" id="capturar" style="display:none;">
+  <h3>Capturar Recibo</h3>
+
+  <label>Subir imagen del recibo:</label><br>
+  <input type="file" id="archivo" accept="image/*"><br><br>
+  <button class="boton" onclick="leerRecibo()">Escanear</button>
+
+  <br><br>
+
+  <label>Número de servicio:</label><br>
+  <input type="text" id="numeroServicio"><br><br>
+
+  <label>Periodo:</label><br>
+  <input type="text" id="periodo"><br><br>
+
+  <label>Lectura anterior:</label><br>
+  <input type="number" id="lecturaAnterior"><br><br>
+
+  <label>Lectura actual:</label><br>
+  <input type="number" id="lecturaActual"><br><br>
+
+  <label>Total a pagar:</label><br>
+  <input type="number" id="total"><br><br>
+
+  <button class="boton" onclick="guardarDatos()">Guardar</button>
+  <button class="boton" onclick="cerrarTodo()">Cerrar</button>
+</div>
+
+<!-- VER -->
+<div class="materia" id="ver" style="display:none;">
+  <h3>Datos Guardados</h3>
+  <div id="resultado"></div>
+  <br>
+  <button class="boton" onclick="cerrarTodo()">Cerrar</button>
+</div>
+
+<script>
+
+function mostrarSeccion(seccion) {
+  document.getElementById("capturar").style.display = "none";
+  document.getElementById("ver").style.display = "none";
+  document.getElementById(seccion).style.display = "block";
+
+  if (seccion === "ver") {
+    mostrarDatos();
+  }
+}
+
+function guardarDatos() {
+  const datos = {
+    numeroServicio: document.getElementById("numeroServicio").value,
+    periodo: document.getElementById("periodo").value,
+    lecturaAnterior: document.getElementById("lecturaAnterior").value,
+    lecturaActual: document.getElementById("lecturaActual").value,
+    total: document.getElementById("total").value
+  };
+
+  localStorage.setItem("recibo", JSON.stringify(datos));
+  alert("Datos guardados correctamente");
+}
+
+function mostrarDatos() {
+  const datos = JSON.parse(localStorage.getItem("recibo"));
+
+  if (!datos) {
+    document.getElementById("resultado").innerHTML = "No hay datos guardados.";
+    return;
+  }
+
+  document.getElementById("resultado").innerHTML = `
+    <p><strong>Número de servicio:</strong> ${datos.numeroServicio}</p>
+    <p><strong>Periodo:</strong> ${datos.periodo}</p>
+    <p><strong>Lectura anterior:</strong> ${datos.lecturaAnterior}</p>
+    <p><strong>Lectura actual:</strong> ${datos.lecturaActual}</p>
+    <p><strong>Total a pagar:</strong> $${datos.total}</p>
+  `;
+}
+
+function cerrarTodo() {
+  document.getElementById("capturar").style.display = "none";
+  document.getElementById("ver").style.display = "none";
+}
+
+async function leerRecibo() {
+  const archivo = document.getElementById("archivo").files[0];
+
+  if (!archivo) {
+    alert("Selecciona una imagen del recibo");
+    return;
+  }
+
+  alert("Escaneando... espera unos segundos");
+
+  const { data: { text } } = await Tesseract.recognize(
+    archivo,
+    'spa'
+  );
+
+  console.log(text);
+
+  // AUTOLLENADO BÁSICO (puedes ajustarlo según tu recibo)
+
+  const numeroServicio = text.match(/\d{12}/);
+  if (numeroServicio) {
+    document.getElementById("numeroServicio").value = numeroServicio[0];
+  }
+
+  const total = text.match(/\$\s?[\d,]+\.?\d*/);
+  if (total) {
+    document.getElementById("total").value = total[0].replace(/[^\d.]/g, "");
+  }
+
+  alert("Escaneo terminado. Revisa los datos.");
+}
+
+</script>
+
+</body>
+</html>    <h2>Recibo de Luz</h2>
     <button class="boton" onclick="mostrarSeccion('capturar')">Capturar datos</button>
     <button class="boton" onclick="mostrarSeccion('ver')">Ver datos</button>
   </div>
