@@ -2,51 +2,58 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Escáner Profesional Recibo CFE</title>
+<title>Escáner Recibo CFE</title>
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc =
-'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
 </script>
 
-<!-- Tesseract OCR -->
+<!-- Tesseract -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
 body{
-  font-family:Arial;
-  background:#f0f2f5;
-  padding:20px;
+font-family:Arial;
+background:#f0f2f5;
+padding:20px;
 }
 
 .card{
-  background:white;
-  padding:20px;
-  border-radius:10px;
-  box-shadow:0 4px 8px rgba(0,0,0,0.1);
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 4px 8px rgba(0,0,0,0.1);
+max-width:900px;
+margin:auto;
 }
 
 button{
-  padding:8px 12px;
-  margin:5px;
-  background:#2980b9;
-  color:white;
-  border:none;
-  border-radius:5px;
-  cursor:pointer;
+padding:10px 15px;
+margin:10px 0;
+background:#2980b9;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
 }
 
 button:hover{
-  background:#1f6391;
+background:#1f6391;
 }
 
 .resultado{
-  margin-top:20px;
-  background:#f9f9f9;
-  padding:15px;
-  border-radius:8px;
+background:#f9f9f9;
+padding:15px;
+margin-top:15px;
+border-radius:8px;
+white-space:pre-wrap;
+}
+
+canvas{
+display:none;
 }
 </style>
 </head>
@@ -54,70 +61,71 @@ button:hover{
 <body>
 
 <div class="card">
-<h2>Escáner Profesional Recibo CFE</h2>
+<h2>Escáner Recibo CFE</h2>
 
 <input type="file" id="archivo" accept="application/pdf">
-<button onclick="leerPDF()">Escanear Recibo</button>
+<br>
+<button onclick="procesar()">Escanear Recibo</button>
 
 <div id="estado"></div>
-<div id="resultado"></div>
+<div id="datos" class="resultado"></div>
+<div id="textoOCR" class="resultado"></div>
 
 </div>
 
 <script>
 
-async function leerPDF(){
+async function procesar(){
 
-const archivo=document.getElementById("archivo").files[0];
+const archivo = document.getElementById("archivo").files[0];
 if(!archivo){
 alert("Selecciona un PDF");
 return;
 }
 
-document.getElementById("estado").innerHTML="Escaneando... puede tardar 20-40 segundos";
+document.getElementById("estado").innerHTML="Procesando... espera 20-40 segundos";
 
-const reader=new FileReader();
+const reader = new FileReader();
 
-reader.onload=async function(){
+reader.onload = async function(){
 
-try{
+const typedarray = new Uint8Array(this.result);
+const pdf = await pdfjsLib.getDocument({data:typedarray}).promise;
 
-const typedarray=new Uint8Array(this.result);
-const pdf=await pdfjsLib.getDocument(typedarray).promise;
-
-let textoCompleto="";
+let textoTotal = "";
 
 for(let i=1;i<=pdf.numPages;i++){
 
-const pagina=await pdf.getPage(i);
-const viewport=pagina.getViewport({scale:2});
+const page = await pdf.getPage(i);
+const viewport = page.getViewport({scale:3});
 
-const canvas=document.createElement("canvas");
-const context=canvas.getContext("2d");
+const canvas = document.createElement("canvas");
+const context = canvas.getContext("2d");
 
-canvas.height=viewport.height;
-canvas.width=viewport.width;
+canvas.width = viewport.width;
+canvas.height = viewport.height;
 
-await pagina.render({
-canvasContext:context,
-viewport:viewport
+await page.render({
+canvasContext: context,
+viewport: viewport
 }).promise;
 
-const imageData=canvas.toDataURL("image/png");
+// Convertir a imagen
+const imageData = canvas.toDataURL("image/png");
 
-const {data:{text}}=await Tesseract.recognize(imageData,'spa',{
-logger:m=>console.log(m)
-});
+// OCR
+const result = await Tesseract.recognize(
+imageData,
+"spa",
+{
+logger: m => console.log(m)
+}
+);
 
-textoCompleto+=text+" ";
+textoTotal += result.data.text + " ";
 }
 
-extraerDatos(textoCompleto);
-
-}catch(error){
-document.getElementById("estado").innerHTML="Error al procesar PDF";
-console.error(error);
-}
+extraerDatos(textoTotal);
 
 };
 
@@ -126,43 +134,32 @@ reader.readAsArrayBuffer(archivo);
 
 function extraerDatos(text){
 
-text=text.replace(/\n/g," ").replace(/\s+/g," ");
+text = text.replace(/\n/g," ").replace(/\s+/g," ");
 
 function buscar(regex){
-const match=text.match(regex);
-return match?match[0]:"No detectado";
+const match = text.match(regex);
+return match ? match[0] : "No detectado";
 }
 
-const datos={
-
-numeroServicio:buscar(/\d{12}/),
-periodo:buscar(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}/),
-consumo:buscar(/\d+\s?kWh/i),
-tarifa:buscar(/Tarifa\s?[A-Z0-9]+/i),
-medidor:buscar(/Medidor\s?\d+/i),
-total:buscar(/\$\s?\d{1,3}(,\d{3})*(\.\d{2})/),
-fechaLimite:buscar(/Fecha\s*l[ií]mite\s*\d{2}\/\d{2}\/\d{4}/i)
-
+const datos = {
+numeroServicio: buscar(/\d{12}/),
+periodo: buscar(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}/),
+consumo: buscar(/\d+\s?kWh/i),
+total: buscar(/\$\s?\d{1,3}(,\d{3})*(\.\d{2})/)
 };
-
-mostrar(datos);
-}
-
-function mostrar(d){
 
 document.getElementById("estado").innerHTML="Escaneo terminado ✔";
 
-document.getElementById("resultado").innerHTML=`
-<div class="resultado">
-<b>No. Servicio:</b> ${d.numeroServicio}<br><br>
-<b>Periodo:</b> ${d.periodo}<br><br>
-<b>Consumo:</b> ${d.consumo}<br><br>
-<b>Tarifa:</b> ${d.tarifa}<br><br>
-<b>Medidor:</b> ${d.medidor}<br><br>
-<b>Total:</b> ${d.total}<br><br>
-<b>Fecha Límite:</b> ${d.fechaLimite}
-</div>
-`;
+document.getElementById("datos").innerHTML=
+"===== DATOS DETECTADOS =====\n\n"+
+"No. Servicio: "+datos.numeroServicio+"\n\n"+
+"Periodo: "+datos.periodo+"\n\n"+
+"Consumo: "+datos.consumo+"\n\n"+
+"Total: "+datos.total;
+
+document.getElementById("textoOCR").innerHTML=
+"\n\n===== TEXTO COMPLETO OCR =====\n\n"+text;
+
 }
 
 </script>
