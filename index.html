@@ -23,7 +23,6 @@ h1{text-align:center}
   box-shadow:0 0 10px rgba(0,0,0,0.1);
 }
 button{padding:6px;margin-top:5px}
-textarea{width:100%;height:120px;margin-top:10px}
 input{width:100%;margin-top:5px;padding:5px}
 </style>
 </head>
@@ -41,7 +40,7 @@ input{width:100%;margin-top:5px;padding:5px}
 <script>
 
 let registros = JSON.parse(localStorage.getItem("registros")) || [];
-let patrones = JSON.parse(localStorage.getItem("patrones")) || {};
+let patrones  = JSON.parse(localStorage.getItem("patrones")) || {};
 
 mostrar();
 
@@ -61,11 +60,9 @@ async function procesar(){
       const typedarray = new Uint8Array(reader.result);
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
 
-      /* ========= CAMBIO 1: leer todas las páginas ========= */
-
       let textoCompleto = "";
 
-      for(let p = 1; p <= pdf.numPages; p++){
+      for(let p=1; p<=pdf.numPages; p++){
 
         const page = await pdf.getPage(p);
 
@@ -73,16 +70,12 @@ async function procesar(){
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d");
 
-        canvas.width = viewport.width;
+        canvas.width  = viewport.width;
         canvas.height = viewport.height;
 
         await page.render({canvasContext:context, viewport}).promise;
 
-        const result = await Tesseract.recognize(
-          canvas,
-          'spa'
-        );
-
+        const result = await Tesseract.recognize(canvas,'spa');
         textoCompleto += "\n" + result.data.text;
       }
 
@@ -90,9 +83,6 @@ async function procesar(){
       let datos  = extraerDatos(limpio);
 
       guardarRegistro(limpio, datos);
-
-      /* =================================================== */
-
     };
 
     reader.readAsArrayBuffer(file);
@@ -112,18 +102,15 @@ async function procesar(){
 
 async function escanear(img){
 
-  alert("Escaneando...");
-
   const result = await Tesseract.recognize(
     img,
-    'spa',
-    { logger: m => console.log(m) }
+    'spa'
   );
 
   let texto = result.data.text;
 
   let limpio = limpiarTexto(texto);
-  let datos = extraerDatos(limpio);
+  let datos  = extraerDatos(limpio);
 
   guardarRegistro(limpio, datos);
 }
@@ -137,54 +124,104 @@ function limpiarTexto(texto){
   return texto;
 }
 
-/* =============================
-   DETECTORES PARA RECIBO CFE
-   ============================= */
+/* ===========================
+   EXTRACCIÓN DE DATOS CFE
+   =========================== */
 
 function extraerDatos(texto){
 
-  let datos = {
-    nombre: detectarNombre(texto),
-    servicio: detectarServicio(texto),
+  const nds = detectarNombreDireccionServicio(texto);
+
+  return {
+    nombre: nds.nombre,
+    direccion: nds.direccion,
+    servicio: nds.servicio,
+
+    limitePago: detectarLimitePago(texto),
+    corteApartir: detectarCorte(texto),
+
+    tarifa: detectarTarifa(texto),
+    medidor: detectarMedidor(texto),
+    multiplicador: detectarMultiplicador(texto),
+
+    periodo: detectarPeriodo(texto),
     total: detectarTotal(texto),
-    direccion: detectarDireccion(texto),
-    periodo: detectarPeriodo(texto)
+    energia: detectarEnergia(texto)
   };
-
-  return datos;
 }
 
-/* ========= CAMBIO 2: detectarTotal ========= */
+/* nombre arriba de dirección y dirección arriba de servicio */
 
-function detectarTotal(texto){
-  let m = texto.match(/(importe\s*a\s*pagar|total)\s*[$]?\s*([0-9.,]+)/i);
-  return m ? m[2] : "No detectado";
+function detectarNombreDireccionServicio(texto){
+
+  let lineas = texto
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  let idx = lineas.findIndex(l =>
+    /no\.?\s*servicio|servicio|rpu/i.test(l)
+  );
+
+  let servicio  = "No detectado";
+  let direccion = "No detectado";
+  let nombre    = "No detectado";
+
+  if(idx !== -1){
+
+    let m = lineas[idx].match(/([0-9]{6,})/);
+    if(m) servicio = m[1];
+
+    if(idx-1 >= 0) direccion = lineas[idx-1];
+    if(idx-2 >= 0) nombre    = lineas[idx-2];
+  }
+
+  return {nombre, direccion, servicio};
 }
 
-function detectarServicio(texto){
-  let m = texto.match(/(servicio|rpu)\s*[:#]?\s*([0-9]+)/i);
-  return m ? m[2] : "No detectado";
+function detectarLimitePago(texto){
+  let m = texto.match(/l[ií]mite\s*de\s*pago\s*[:\-]?\s*([^\n]+)/i);
+  return m ? m[1].trim() : "No detectado";
+}
+
+function detectarCorte(texto){
+  let m = texto.match(/corte\s*a\s*partir\s*[:\-]?\s*([^\n]+)/i);
+  return m ? m[1].trim() : "No detectado";
+}
+
+function detectarTarifa(texto){
+  let m = texto.match(/tarifa\s*[:\-]?\s*([A-Z0-9]+)/i);
+  return m ? m[1] : "No detectado";
+}
+
+function detectarMedidor(texto){
+  let m = texto.match(/medidor\s*[:\-]?\s*([0-9]+)/i);
+  return m ? m[1] : "No detectado";
+}
+
+function detectarMultiplicador(texto){
+  let m = texto.match(/multiplicador\s*[:\-]?\s*([0-9.,]+)/i);
+  return m ? m[1] : "No detectado";
 }
 
 function detectarPeriodo(texto){
-  let m = texto.match(/periodo\s*[:\-]?\s*([^\n]+)/i);
-  return m ? m[1].trim() : "No detectado";
-}
-
-function detectarNombre(texto){
-  let m = texto.match(/nombre\s*[:\-]?\s*([^\n]+)/i);
-  return m ? m[1].trim() : "No detectado";
-}
-
-function detectarDireccion(texto){
-  let m = texto.match(/(domicilio|direcci[oó]n)\s*[:\-]?\s*([^\n]+)/i);
+  let m = texto.match(/periodo\s*(facturado)?\s*[:\-]?\s*([^\n]+)/i);
   return m ? m[2].trim() : "No detectado";
 }
 
-/* ============================= */
+function detectarTotal(texto){
+  let m = texto.match(/(total\s*a\s*pagar|importe\s*a\s*pagar)\s*[$]?\s*([0-9.,]+)/i);
+  return m ? m[2] : "No detectado";
+}
+
+function detectarEnergia(texto){
+  let m = texto.match(/energ[ií]a\s*(en)?\s*kwh\s*[:\-]?\s*([0-9.,]+)/i);
+  return m ? m[2] : "No detectado";
+}
+
+/* =========================== */
 
 function guardarRegistro(texto,datos){
-
   registros.push({texto,datos});
   localStorage.setItem("registros",JSON.stringify(registros));
   mostrar();
@@ -199,20 +236,39 @@ function mostrar(){
 
     cont.innerHTML += `
     <div class="card">
-      <b>Nombre:</b>
+
+      <b>Nombre</b>
       <input value="${r.datos.nombre}" onchange="editar(${i},'nombre',this.value)">
 
-      <b>Servicio:</b>
-      <input value="${r.datos.servicio}" onchange="editar(${i},'servicio',this.value)">
-
-      <b>Total:</b>
-      <input value="${r.datos.total}" onchange="editar(${i},'total',this.value)">
-
-      <b>Dirección:</b>
+      <b>Dirección</b>
       <input value="${r.datos.direccion}" onchange="editar(${i},'direccion',this.value)">
 
-      <b>Periodo:</b>
+      <b>No. servicio</b>
+      <input value="${r.datos.servicio}" onchange="editar(${i},'servicio',this.value)">
+
+      <b>Límite de pago</b>
+      <input value="${r.datos.limitePago}" onchange="editar(${i},'limitePago',this.value)">
+
+      <b>Corte a partir</b>
+      <input value="${r.datos.corteApartir}" onchange="editar(${i},'corteApartir',this.value)">
+
+      <b>Tarifa</b>
+      <input value="${r.datos.tarifa}" onchange="editar(${i},'tarifa',this.value)">
+
+      <b>No. medidor</b>
+      <input value="${r.datos.medidor}" onchange="editar(${i},'medidor',this.value)">
+
+      <b>Multiplicador</b>
+      <input value="${r.datos.multiplicador}" onchange="editar(${i},'multiplicador',this.value)">
+
+      <b>Periodo facturado</b>
       <input value="${r.datos.periodo}" onchange="editar(${i},'periodo',this.value)">
+
+      <b>Total a pagar</b>
+      <input value="${r.datos.total}" onchange="editar(${i},'total',this.value)">
+
+      <b>Energía (kWh)</b>
+      <input value="${r.datos.energia}" onchange="editar(${i},'energia',this.value)">
 
       <button onclick="verTexto(${i})">Ver texto OCR</button>
       <button onclick="borrar(${i})">Borrar</button>
@@ -230,7 +286,6 @@ function editar(index,campo,valor){
 }
 
 function aprender(texto,campo,valor){
-
   if(valor !== "No detectado" && valor.trim() !== ""){
     patrones[campo] = campo + "[:\\s]*(" + valor + ")";
     localStorage.setItem("patrones",JSON.stringify(patrones));
