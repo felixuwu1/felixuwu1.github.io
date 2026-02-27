@@ -1,340 +1,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Escáner Inteligente CFE</title>
+  <meta charset="UTF-8">
+  <title>Sistema de Recibos CFE</title>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 
-<script>
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js";
-</script>
+  <!-- OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
-<style>
-body{font-family:Arial;background:#f2f2f2;padding:20px}
-h1{text-align:center}
-.card{
-  background:white;
-  padding:15px;
-  margin-top:15px;
-  border-radius:10px;
-  box-shadow:0 0 10px rgba(0,0,0,0.1);
-}
-button{padding:6px;margin-top:5px}
-input{width:100%;margin-top:5px;padding:5px}
-</style>
+  <style>
+    body { font-family: Arial; background:#f0f2f5; padding:20px; }
+    .card { background:white; padding:20px; margin:20px auto;
+            width:90%; border-radius:10px;
+            box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+    input { width:70%; padding:6px; margin-bottom:10px; }
+    button { padding:8px 12px; margin:5px;
+             background:#2980b9; color:white;
+             border:none; border-radius:5px; cursor:pointer; }
+    button:hover { background:#1f6391; }
+    .recibo { background:#f9f9f9; padding:10px;
+              margin:10px 0; border-radius:8px; }
+    .eliminar { background:#c0392b; }
+    .eliminar:hover { background:#922b21; }
+    .borrarTodo { background:#7f8c8d; }
+  </style>
 </head>
 
 <body>
 
-<h1>Escáner Inteligente CFE</h1>
+<div class="card">
+  <h2>Sistema de Recibos de Luz</h2>
 
-<input type="file" id="fileInput" accept="image/*,.pdf">
-<button onclick="procesar()">Escanear</button>
+  <input type="file" id="archivo" accept="application/pdf">
+  <button onclick="leerPDF()">Escanear PDF</button>
+  <button class="borrarTodo" onclick="borrarTodo()">Borrar Todo</button>
 
-<h2>Registros</h2>
-<div id="contenedor"></div>
+  <hr>
+
+  <h3>Recibos Guardados</h3>
+  <div id="listaRecibos"></div>
+</div>
 
 <script>
 
-let registros = JSON.parse(localStorage.getItem("registros")) || [];
-let patrones  = JSON.parse(localStorage.getItem("patrones")) || {};
+let textoOCR = "";
 
-mostrar();
+async function leerPDF() {
 
-async function procesar(){
-
-  const file = document.getElementById("fileInput").files[0];
-  if(!file){
-    alert("Selecciona archivo");
+  const archivo = document.getElementById("archivo").files[0];
+  if (!archivo) {
+    alert("Selecciona un PDF");
     return;
   }
 
-  if(file.type === "application/pdf"){
+  alert("Escaneando... espera");
 
-    const reader = new FileReader();
-    reader.onload = async () => {
+  const reader = new FileReader();
 
-      const typedarray = new Uint8Array(reader.result);
-      const pdf = await pdfjsLib.getDocument(typedarray).promise;
+  reader.onload = async function() {
 
-      let textoCompleto = "";
+    const typedarray = new Uint8Array(this.result);
+    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+    const pagina = await pdf.getPage(1);
 
-      for(let p=1; p<=pdf.numPages; p++){
+    const viewport = pagina.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
 
-        const page = await pdf.getPage(p);
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
 
-        const viewport = page.getViewport({scale:2});
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
+    await pagina.render({
+      canvasContext: context,
+      viewport: viewport
+    }).promise;
 
-        canvas.width  = viewport.width;
-        canvas.height = viewport.height;
+    const imageData = canvas.toDataURL("image/png");
 
-        await page.render({canvasContext:context, viewport}).promise;
+    const { data: { text } } = await Tesseract.recognize(imageData, 'spa');
 
-        const result = await Tesseract.recognize(canvas,'spa');
-        textoCompleto += "\n" + result.data.text;
-      }
-
-      let limpio = limpiarTexto(textoCompleto);
-      let datos  = extraerDatos(limpio);
-
-      guardarRegistro(limpio, datos);
-    };
-
-    reader.readAsArrayBuffer(file);
-
-  }else{
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.src = reader.result;
-      img.onload = () => escanear(img);
-    };
-    reader.readAsDataURL(file);
-
-  }
-}
-
-async function escanear(img){
-
-  const result = await Tesseract.recognize(img,'spa');
-
-  let texto = result.data.text;
-
-  let limpio = limpiarTexto(texto);
-  let datos  = extraerDatos(limpio);
-
-  guardarRegistro(limpio, datos);
-}
-
-function limpiarTexto(texto){
-
-  texto = texto.replace(/Totai/gi,"Total");
-  texto = texto.replace(/Paqar/gi,"Pagar");
-  texto = texto.replace(/O/g,"0");
-
-  return texto;
-}
-
-/* ===========================
-   EXTRACCIÓN DE DATOS CFE
-   =========================== */
-
-function extraerDatos(texto){
-
-  const nds = detectarNombreDireccionServicio(texto);
-
-  // 👉 nuevo: nombre tomado desde la etiqueta "Nombre"
-  const nombreEtiqueta = detectarNombre(texto);
-
-  return {
-    nombre: nombreEtiqueta !== "No detectado" ? nombreEtiqueta : nds.nombre,
-    direccion: nds.direccion,
-    servicio: nds.servicio,
-
-    limitePago: detectarLimitePago(texto),
-    corteApartir: detectarCorte(texto),
-
-    tarifa: detectarTarifa(texto),
-    medidor: detectarMedidor(texto),
-    multiplicador: detectarMultiplicador(texto),
-
-    periodo: detectarPeriodo(texto),
-    total: detectarTotal(texto),
-    energia: detectarEnergia(texto)
+    textoOCR = text;
+    extraerDatos(text);
   };
+
+  reader.readAsArrayBuffer(archivo);
 }
 
-/* ----------------------------
-   NOMBRE desde la línea
-   que está debajo de "Nombre"
-   ---------------------------- */
+function extraerDatos(text) {
 
-function detectarNombre(texto){
+  const numeroServicio = text.match(/\d{12}/);
+  const periodo = text.match(/\d{2}\/\d{2}\/\d{4}\s?-\s?\d{2}\/\d{2}\/\d{4}/);
+  const consumo = text.match(/\d+\s?kWh/);
+  const total = text.match(/\$\s?[\d,]+\.\d{2}/g);
 
-  let lineas = texto
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
+  const recibo = {
+    numeroServicio: numeroServicio ? numeroServicio[0] : "No detectado",
+    periodo: periodo ? periodo[0] : "No detectado",
+    consumo: consumo ? consumo[0] : "No detectado",
+    total: total ? total[total.length-1] : "No detectado"
+  };
 
-  for(let i=0;i<lineas.length;i++){
-
-    if(/^nombre$/i.test(lineas[i]) || lineas[i].toLowerCase() === "nombre"){
-
-      if(i+1 < lineas.length){
-        return lineas[i+1];
-      }
-
-    }
-
-    if(/nombre\s*:/i.test(lineas[i])){
-      let p = lineas[i].split(/nombre\s*:/i);
-      if(p[1] && p[1].trim() !== ""){
-        return p[1].trim();
-      }
-    }
-  }
-
-  return "No detectado";
+  guardarRecibo(recibo);
 }
 
-/* nombre arriba de dirección y dirección arriba de servicio
-   (se deja igual para dirección y servicio) */
+function guardarRecibo(recibo) {
 
-function detectarNombreDireccionServicio(texto){
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  recibos.push(recibo);
+  localStorage.setItem("recibos", JSON.stringify(recibos));
 
-  let lineas = texto
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
-
-  let idx = lineas.findIndex(l =>
-    /no\.?\s*servicio|servicio|rpu/i.test(l)
-  );
-
-  let servicio  = "No detectado";
-  let direccion = "No detectado";
-  let nombre    = "No detectado";
-
-  if(idx !== -1){
-
-    let m = lineas[idx].match(/([0-9]{6,})/);
-    if(m) servicio = m[1];
-
-    if(idx-1 >= 0) direccion = lineas[idx-1];
-    if(idx-2 >= 0) nombre    = lineas[idx-2];
-  }
-
-  return {nombre, direccion, servicio};
+  mostrarRecibos();
+  alert("Recibo guardado ✔");
 }
 
-function detectarLimitePago(texto){
-  let m = texto.match(/l[ií]mite\s*de\s*pago\s*[:\-]?\s*([^\n]+)/i);
-  return m ? m[1].trim() : "No detectado";
-}
+function mostrarRecibos() {
 
-function detectarCorte(texto){
-  let m = texto.match(/corte\s*a\s*partir\s*[:\-]?\s*([^\n]+)/i);
-  return m ? m[1].trim() : "No detectado";
-}
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  const lista = document.getElementById("listaRecibos");
+  lista.innerHTML = "";
 
-function detectarTarifa(texto){
-  let m = texto.match(/tarifa\s*[:\-]?\s*([A-Z0-9]+)/i);
-  return m ? m[1] : "No detectado";
-}
-
-function detectarMedidor(texto){
-  let m = texto.match(/medidor\s*[:\-]?\s*([0-9]+)/i);
-  return m ? m[1] : "No detectado";
-}
-
-function detectarMultiplicador(texto){
-  let m = texto.match(/multiplicador\s*[:\-]?\s*([0-9.,]+)/i);
-  return m ? m[1] : "No detectado";
-}
-
-function detectarPeriodo(texto){
-  let m = texto.match(/periodo\s*(facturado)?\s*[:\-]?\s*([^\n]+)/i);
-  return m ? m[2].trim() : "No detectado";
-}
-
-function detectarTotal(texto){
-  let m = texto.match(/(total\s*a\s*pagar|importe\s*a\s*pagar)\s*[$]?\s*([0-9.,]+)/i);
-  return m ? m[2] : "No detectado";
-}
-
-function detectarEnergia(texto){
-  let m = texto.match(/energ[ií]a\s*(en)?\s*kwh\s*[:\-]?\s*([0-9.,]+)/i);
-  return m ? m[2] : "No detectado";
-}
-
-/* =========================== */
-
-function guardarRegistro(texto,datos){
-  registros.push({texto,datos});
-  localStorage.setItem("registros",JSON.stringify(registros));
-  mostrar();
-}
-
-function mostrar(){
-
-  const cont = document.getElementById("contenedor");
-  cont.innerHTML = "";
-
-  registros.forEach((r,i)=>{
-
-    cont.innerHTML += `
-    <div class="card">
-
-      <b>Nombre</b>
-      <input value="${r.datos.nombre}" onchange="editar(${i},'nombre',this.value)">
-
-      <b>Dirección</b>
-      <input value="${r.datos.direccion}" onchange="editar(${i},'direccion',this.value)">
-
-      <b>No. servicio</b>
-      <input value="${r.datos.servicio}" onchange="editar(${i},'servicio',this.value)">
-
-      <b>Límite de pago</b>
-      <input value="${r.datos.limitePago}" onchange="editar(${i},'limitePago',this.value)">
-
-      <b>Corte a partir</b>
-      <input value="${r.datos.corteApartir}" onchange="editar(${i},'corteApartir',this.value)">
-
-      <b>Tarifa</b>
-      <input value="${r.datos.tarifa}" onchange="editar(${i},'tarifa',this.value)">
-
-      <b>No. medidor</b>
-      <input value="${r.datos.medidor}" onchange="editar(${i},'medidor',this.value)">
-
-      <b>Multiplicador</b>
-      <input value="${r.datos.multiplicador}" onchange="editar(${i},'multiplicador',this.value)">
-
-      <b>Periodo facturado</b>
-      <input value="${r.datos.periodo}" onchange="editar(${i},'periodo',this.value)">
-
-      <b>Total a pagar</b>
-      <input value="${r.datos.total}" onchange="editar(${i},'total',this.value)">
-
-      <b>Energía (kWh)</b>
-      <input value="${r.datos.energia}" onchange="editar(${i},'energia',this.value)">
-
-      <button onclick="verTexto(${i})">Ver texto OCR</button>
-      <button onclick="borrar(${i})">Borrar</button>
-    </div>
+  recibos.forEach((r, index) => {
+    lista.innerHTML += `
+      <div class="recibo">
+        <strong>No. Servicio:</strong> ${r.numeroServicio}<br>
+        <strong>Periodo:</strong> ${r.periodo}<br>
+        <strong>Consumo:</strong> ${r.consumo}<br>
+        <strong>Total:</strong> ${r.total}<br>
+        <button class="eliminar" onclick="eliminarRecibo(${index})">Eliminar</button>
+      </div>
     `;
   });
 }
 
-function editar(index,campo,valor){
+function eliminarRecibo(index) {
 
-  registros[index].datos[campo] = valor;
-  aprender(registros[index].texto, campo, valor);
+  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
+  recibos.splice(index, 1);
+  localStorage.setItem("recibos", JSON.stringify(recibos));
 
-  localStorage.setItem("registros",JSON.stringify(registros));
+  mostrarRecibos();
 }
 
-function aprender(texto,campo,valor){
-  if(valor !== "No detectado" && valor.trim() !== ""){
-    patrones[campo] = campo + "[:\\s]*(" + valor + ")";
-    localStorage.setItem("patrones",JSON.stringify(patrones));
+function borrarTodo() {
+
+  if (confirm("¿Seguro que quieres borrar todos los recibos?")) {
+    localStorage.removeItem("recibos");
+    mostrarRecibos();
   }
 }
 
-function verTexto(i){
-  alert(registros[i].texto);
-}
-
-function borrar(i){
-  registros.splice(i,1);
-  localStorage.setItem("registros",JSON.stringify(registros));
-  mostrar();
-}
+mostrarRecibos();
 
 </script>
 
