@@ -2,137 +2,157 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Escáner Inteligente de Recibos</title>
+<title>Escáner Inteligente Auto-Mejorable</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
 
 <style>
-body{
-  font-family: Arial;
-  background:#f2f2f2;
-  padding:20px;
-}
-h1{text-align:center;}
-
-input,button{
-  padding:8px;
-  margin-top:10px;
-}
-
+body{font-family:Arial;background:#f2f2f2;padding:20px}
+h1{text-align:center}
 .card{
   background:white;
   padding:15px;
   margin-top:15px;
   border-radius:10px;
   box-shadow:0 0 10px rgba(0,0,0,0.1);
-  position:relative;
 }
-
-.delete{
-  position:absolute;
-  right:10px;
-  top:10px;
-  background:red;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
+button{padding:6px;margin-top:5px}
+textarea{width:100%;height:120px;margin-top:10px}
+input{width:100%;margin-top:5px;padding:5px}
 </style>
 </head>
 
 <body>
 
-<h1>Escáner Inteligente de Recibos</h1>
+<h1>Escáner Inteligente CFE</h1>
 
 <input type="file" id="fileInput" accept="image/*,.pdf">
-<button onclick="procesar()">Escanear Documento</button>
+<button onclick="procesar()">Escanear</button>
 
-<h2>Registros Guardados</h2>
+<h2>Registros</h2>
 <div id="contenedor"></div>
 
 <script>
 
 let registros = JSON.parse(localStorage.getItem("registros")) || [];
+let patrones = JSON.parse(localStorage.getItem("patrones")) || {};
+
 mostrar();
 
 async function procesar(){
   const file = document.getElementById("fileInput").files[0];
-  if(!file){ alert("Selecciona un archivo"); return; }
+  if(!file){ alert("Selecciona archivo"); return;}
 
-  if(file.type === "application/pdf"){
-    const reader = new FileReader();
-    reader.onload = async function(){
-      const typedarray = new Uint8Array(this.result);
-      const pdf = await pdfjsLib.getDocument(typedarray).promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 2 });
-
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
+  if(file.type==="application/pdf"){
+    const reader=new FileReader();
+    reader.onload=async function(){
+      const typedarray=new Uint8Array(this.result);
+      const pdf=await pdfjsLib.getDocument(typedarray).promise;
+      const page=await pdf.getPage(1);
+      const viewport=page.getViewport({scale:2});
+      const canvas=document.createElement("canvas");
+      const context=canvas.getContext("2d");
+      canvas.height=viewport.height;
+      canvas.width=viewport.width;
       await page.render({canvasContext:context,viewport:viewport}).promise;
       escanear(canvas);
     }
     reader.readAsArrayBuffer(file);
   }else{
-    const reader = new FileReader();
-    reader.onload = function(){
-      const img = new Image();
-      img.src = reader.result;
-      img.onload = function(){ escanear(img); }
+    const reader=new FileReader();
+    reader.onload=function(){
+      const img=new Image();
+      img.src=reader.result;
+      img.onload=function(){escanear(img);}
     }
     reader.readAsDataURL(file);
   }
 }
 
-async function escanear(imagen){
-  alert("Escaneando... espera");
+async function escanear(img){
+  alert("Escaneando...");
+  const {data:{text}}=await Tesseract.recognize(img,'spa');
+  let limpio=limpiarTexto(text);
+  let datos=extraerDatos(limpio);
+  guardarRegistro(limpio,datos);
+}
 
-  const { data:{text} } = await Tesseract.recognize(imagen,'spa');
-
-  extraerDatos(text);
+function limpiarTexto(texto){
+  texto=texto.replace(/Totai/gi,"Total");
+  texto=texto.replace(/Paqar/gi,"Pagar");
+  texto=texto.replace(/O/g,"0");
+  return texto;
 }
 
 function extraerDatos(texto){
 
-  let fecha = texto.match(/\d{2}\/\d{2}\/\d{4}/);
-  let total = texto.match(/\$\s?\d+[.,]?\d*/);
-  let servicio = texto.match(/servicio\s*[:\-]?\s*(\d+)/i);
-  let nombre = texto.match(/nombre\s*[:\-]?\s*([A-Z\s]+)/i);
-  let direccion = texto.match(/direcci[oó]n\s*[:\-]?\s*(.*)/i);
-
-  let registro = {
-    fecha: fecha ? fecha[0] : "No detectado",
-    total: total ? total[0] : "No detectado",
-    servicio: servicio ? servicio[1] : "No detectado",
-    nombre: nombre ? nombre[1] : "No detectado",
-    direccion: direccion ? direccion[1] : "No detectado"
+  let datos={
+    nombre: buscar(texto,"nombre"),
+    servicio: buscar(texto,"servicio"),
+    total: buscar(texto,"total"),
+    direccion: buscar(texto,"dirección"),
+    periodo: buscar(texto,"periodo")
   };
 
-  registros.push(registro);
+  return datos;
+}
+
+function buscar(texto,campo){
+  if(patrones[campo]){
+    let match=texto.match(new RegExp(patrones[campo],"i"));
+    if(match) return match[1];
+  }
+
+  let general=texto.match(new RegExp(campo+"[:\\s]*(.*)","i"));
+  return general?general[1]:"No detectado";
+}
+
+function guardarRegistro(texto,datos){
+  registros.push({texto,datos});
   localStorage.setItem("registros",JSON.stringify(registros));
   mostrar();
 }
 
 function mostrar(){
-  const contenedor = document.getElementById("contenedor");
-  contenedor.innerHTML="";
-
+  const cont=document.getElementById("contenedor");
+  cont.innerHTML="";
   registros.forEach((r,i)=>{
-    contenedor.innerHTML+=`
+    cont.innerHTML+=`
     <div class="card">
-      <button class="delete" onclick="borrar(${i})">X</button>
-      <b>Nombre:</b> ${r.nombre}<br>
-      <b>Servicio:</b> ${r.servicio}<br>
-      <b>Fecha:</b> ${r.fecha}<br>
-      <b>Total:</b> ${r.total}<br>
-      <b>Dirección:</b> ${r.direccion}
+      <b>Nombre:</b>
+      <input value="${r.datos.nombre}" onchange="editar(${i},'nombre',this.value)">
+      <b>Servicio:</b>
+      <input value="${r.datos.servicio}" onchange="editar(${i},'servicio',this.value)">
+      <b>Total:</b>
+      <input value="${r.datos.total}" onchange="editar(${i},'total',this.value)">
+      <b>Dirección:</b>
+      <input value="${r.datos.direccion}" onchange="editar(${i},'direccion',this.value)">
+      <b>Periodo:</b>
+      <input value="${r.datos.periodo}" onchange="editar(${i},'periodo',this.value)">
+      
+      <button onclick="verTexto(${i})">Ver texto OCR</button>
+      <button onclick="borrar(${i})">Borrar</button>
     </div>
     `;
   });
+}
+
+function editar(index,campo,valor){
+  registros[index].datos[campo]=valor;
+  aprender(registros[index].texto,campo,valor);
+  localStorage.setItem("registros",JSON.stringify(registros));
+}
+
+function aprender(texto,campo,valor){
+  if(valor!=="No detectado"){
+    patrones[campo]=campo+"[:\\s]*("+valor+")";
+    localStorage.setItem("patrones",JSON.stringify(patrones));
+  }
+}
+
+function verTexto(i){
+  alert(registros[i].texto);
 }
 
 function borrar(i){
