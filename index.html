@@ -102,10 +102,7 @@ async function procesar(){
 
 async function escanear(img){
 
-  const result = await Tesseract.recognize(
-    img,
-    'spa'
-  );
+  const result = await Tesseract.recognize(img,'spa');
 
   let texto = result.data.text;
 
@@ -132,8 +129,11 @@ function extraerDatos(texto){
 
   const nds = detectarNombreDireccionServicio(texto);
 
+  // 👉 nuevo: nombre tomado desde la etiqueta "Nombre"
+  const nombreEtiqueta = detectarNombre(texto);
+
   return {
-    nombre: nds.nombre,
+    nombre: nombreEtiqueta !== "No detectado" ? nombreEtiqueta : nds.nombre,
     direccion: nds.direccion,
     servicio: nds.servicio,
 
@@ -150,7 +150,41 @@ function extraerDatos(texto){
   };
 }
 
-/* nombre arriba de dirección y dirección arriba de servicio */
+/* ----------------------------
+   NOMBRE desde la línea
+   que está debajo de "Nombre"
+   ---------------------------- */
+
+function detectarNombre(texto){
+
+  let lineas = texto
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0);
+
+  for(let i=0;i<lineas.length;i++){
+
+    if(/^nombre$/i.test(lineas[i]) || lineas[i].toLowerCase() === "nombre"){
+
+      if(i+1 < lineas.length){
+        return lineas[i+1];
+      }
+
+    }
+
+    if(/nombre\s*:/i.test(lineas[i])){
+      let p = lineas[i].split(/nombre\s*:/i);
+      if(p[1] && p[1].trim() !== ""){
+        return p[1].trim();
+      }
+    }
+  }
+
+  return "No detectado";
+}
+
+/* nombre arriba de dirección y dirección arriba de servicio
+   (se deja igual para dirección y servicio) */
 
 function detectarNombreDireccionServicio(texto){
 
