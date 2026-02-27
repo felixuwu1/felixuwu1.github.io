@@ -2,14 +2,21 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Sistema Profesional Recibos CFE</title>
+<title>Escáner Profesional Recibo CFE</title>
 
+<!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js';
+</script>
+
+<!-- Tesseract OCR -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <style>
 body{
-  font-family: Arial;
+  font-family:Arial;
   background:#f0f2f5;
   padding:20px;
 }
@@ -17,8 +24,6 @@ body{
 .card{
   background:white;
   padding:20px;
-  margin:auto;
-  width:95%;
   border-radius:10px;
   box-shadow:0 4px 8px rgba(0,0,0,0.1);
 }
@@ -33,17 +38,15 @@ button{
   cursor:pointer;
 }
 
-button:hover{ background:#1f6391; }
+button:hover{
+  background:#1f6391;
+}
 
-.eliminar{ background:#c0392b; }
-.borrarTodo{ background:#7f8c8d; }
-
-.recibo{
+.resultado{
+  margin-top:20px;
   background:#f9f9f9;
   padding:15px;
-  margin:10px 0;
   border-radius:8px;
-  font-size:14px;
 }
 </style>
 </head>
@@ -51,16 +54,13 @@ button:hover{ background:#1f6391; }
 <body>
 
 <div class="card">
-<h2>Sistema Profesional Recibos CFE</h2>
+<h2>Escáner Profesional Recibo CFE</h2>
 
 <input type="file" id="archivo" accept="application/pdf">
-<button onclick="leerPDF()">Escanear PDF</button>
-<button class="borrarTodo" onclick="borrarTodo()">Borrar Todo</button>
+<button onclick="leerPDF()">Escanear Recibo</button>
 
-<hr>
-
-<h3>Recibos Guardados</h3>
-<div id="listaRecibos"></div>
+<div id="estado"></div>
+<div id="resultado"></div>
 
 </div>
 
@@ -68,154 +68,102 @@ button:hover{ background:#1f6391; }
 
 async function leerPDF(){
 
-  const archivo = document.getElementById("archivo").files[0];
-  if(!archivo){
-    alert("Selecciona un PDF");
-    return;
-  }
-
-  alert("Analizando PDF...");
-
-  const reader = new FileReader();
-
-  reader.onload = async function(){
-
-    const typedarray = new Uint8Array(this.result);
-    const pdf = await pdfjsLib.getDocument(typedarray).promise;
-
-    let textoCompleto = "";
-
-    for(let i=1;i<=pdf.numPages;i++){
-
-      const pagina = await pdf.getPage(i);
-      const textContent = await pagina.getTextContent();
-
-      const strings = textContent.items.map(item => item.str);
-      const textoPagina = strings.join(" ");
-
-      textoCompleto += textoPagina + " ";
-    }
-
-    // Si el PDF no tiene texto (es escaneado), usar OCR
-    if(textoCompleto.trim().length < 50){
-      alert("PDF escaneado detectado, usando OCR...");
-      textoCompleto = await usarOCR(pdf);
-    }
-
-    extraerDatos(textoCompleto);
-  };
-
-  reader.readAsArrayBuffer(archivo);
+const archivo=document.getElementById("archivo").files[0];
+if(!archivo){
+alert("Selecciona un PDF");
+return;
 }
 
+document.getElementById("estado").innerHTML="Escaneando... puede tardar 20-40 segundos";
 
-async function usarOCR(pdf){
+const reader=new FileReader();
 
-  let textoCompleto = "";
+reader.onload=async function(){
 
-  for(let i=1;i<=pdf.numPages;i++){
+try{
 
-    const pagina = await pdf.getPage(i);
-    const viewport = pagina.getViewport({ scale: 2 });
+const typedarray=new Uint8Array(this.result);
+const pdf=await pdfjsLib.getDocument(typedarray).promise;
 
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
+let textoCompleto="";
 
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
+for(let i=1;i<=pdf.numPages;i++){
 
-    await pagina.render({
-      canvasContext: context,
-      viewport: viewport
-    }).promise;
+const pagina=await pdf.getPage(i);
+const viewport=pagina.getViewport({scale:2});
 
-    const imageData = canvas.toDataURL("image/png");
+const canvas=document.createElement("canvas");
+const context=canvas.getContext("2d");
 
-    const { data:{ text } } = await Tesseract.recognize(imageData,'spa');
+canvas.height=viewport.height;
+canvas.width=viewport.width;
 
-    textoCompleto += text + " ";
-  }
+await pagina.render({
+canvasContext:context,
+viewport:viewport
+}).promise;
 
-  return textoCompleto;
+const imageData=canvas.toDataURL("image/png");
+
+const {data:{text}}=await Tesseract.recognize(imageData,'spa',{
+logger:m=>console.log(m)
+});
+
+textoCompleto+=text+" ";
 }
 
+extraerDatos(textoCompleto);
+
+}catch(error){
+document.getElementById("estado").innerHTML="Error al procesar PDF";
+console.error(error);
+}
+
+};
+
+reader.readAsArrayBuffer(archivo);
+}
 
 function extraerDatos(text){
 
-  text = text.replace(/\n/g," ").replace(/\s+/g," ");
+text=text.replace(/\n/g," ").replace(/\s+/g," ");
 
-  function buscar(regex){
-    const match = text.match(regex);
-    return match ? match[0] : "No detectado";
-  }
-
-  const datos = {
-
-    numeroServicio: buscar(/\d{12}/),
-    periodo: buscar(/\d{2}\/\d{2}\/\d{4}.*?\d{2}\/\d{2}\/\d{4}/),
-    consumo: buscar(/\d+\s?kWh/i),
-    tarifa: buscar(/Tarifa\s?[A-Z0-9]+/i),
-    medidor: buscar(/Medidor\s?\d+/i),
-    total: buscar(/\$\s?\d{1,3}(,\d{3})*(\.\d{2})/)
-  };
-
-  guardarRecibo(datos);
+function buscar(regex){
+const match=text.match(regex);
+return match?match[0]:"No detectado";
 }
 
+const datos={
 
-function guardarRecibo(recibo){
+numeroServicio:buscar(/\d{12}/),
+periodo:buscar(/\d{2}\/\d{2}\/\d{4}\s*-\s*\d{2}\/\d{2}\/\d{4}/),
+consumo:buscar(/\d+\s?kWh/i),
+tarifa:buscar(/Tarifa\s?[A-Z0-9]+/i),
+medidor:buscar(/Medidor\s?\d+/i),
+total:buscar(/\$\s?\d{1,3}(,\d{3})*(\.\d{2})/),
+fechaLimite:buscar(/Fecha\s*l[ií]mite\s*\d{2}\/\d{2}\/\d{4}/i)
 
-  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
-  recibos.push(recibo);
-  localStorage.setItem("recibos", JSON.stringify(recibos));
+};
 
-  mostrarRecibos();
-  alert("Recibo guardado correctamente ✔");
+mostrar(datos);
 }
 
+function mostrar(d){
 
-function mostrarRecibos(){
+document.getElementById("estado").innerHTML="Escaneo terminado ✔";
 
-  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
-  const lista = document.getElementById("listaRecibos");
-  lista.innerHTML = "";
-
-  recibos.forEach((r,index)=>{
-
-    lista.innerHTML += `
-      <div class="recibo">
-        <strong>No. Servicio:</strong> ${r.numeroServicio}<br>
-        <strong>Periodo:</strong> ${r.periodo}<br>
-        <strong>Consumo:</strong> ${r.consumo}<br>
-        <strong>Tarifa:</strong> ${r.tarifa}<br>
-        <strong>Medidor:</strong> ${r.medidor}<br>
-        <strong>Total:</strong> ${r.total}<br>
-        <button class="eliminar" onclick="eliminarRecibo(${index})">Eliminar</button>
-      </div>
-    `;
-  });
+document.getElementById("resultado").innerHTML=`
+<div class="resultado">
+<b>No. Servicio:</b> ${d.numeroServicio}<br><br>
+<b>Periodo:</b> ${d.periodo}<br><br>
+<b>Consumo:</b> ${d.consumo}<br><br>
+<b>Tarifa:</b> ${d.tarifa}<br><br>
+<b>Medidor:</b> ${d.medidor}<br><br>
+<b>Total:</b> ${d.total}<br><br>
+<b>Fecha Límite:</b> ${d.fechaLimite}
+</div>
+`;
 }
-
-
-function eliminarRecibo(index){
-
-  let recibos = JSON.parse(localStorage.getItem("recibos")) || [];
-  recibos.splice(index,1);
-  localStorage.setItem("recibos",JSON.stringify(recibos));
-
-  mostrarRecibos();
-}
-
-
-function borrarTodo(){
-
-  if(confirm("¿Seguro que quieres borrar todos los recibos?")){
-    localStorage.removeItem("recibos");
-    mostrarRecibos();
-  }
-}
-
-mostrarRecibos();
 
 </script>
 
