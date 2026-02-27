@@ -60,18 +60,39 @@ async function procesar(){
 
       const typedarray = new Uint8Array(reader.result);
       const pdf = await pdfjsLib.getDocument(typedarray).promise;
-      const page = await pdf.getPage(1);
 
-      const viewport = page.getViewport({scale:2});
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
+      /* ========= CAMBIO 1: leer todas las páginas ========= */
 
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+      let textoCompleto = "";
 
-      await page.render({canvasContext:context, viewport}).promise;
+      for(let p = 1; p <= pdf.numPages; p++){
 
-      escanear(canvas);
+        const page = await pdf.getPage(p);
+
+        const viewport = page.getViewport({scale:2});
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({canvasContext:context, viewport}).promise;
+
+        const result = await Tesseract.recognize(
+          canvas,
+          'spa'
+        );
+
+        textoCompleto += "\n" + result.data.text;
+      }
+
+      let limpio = limpiarTexto(textoCompleto);
+      let datos  = extraerDatos(limpio);
+
+      guardarRegistro(limpio, datos);
+
+      /* =================================================== */
+
     };
 
     reader.readAsArrayBuffer(file);
@@ -133,8 +154,10 @@ function extraerDatos(texto){
   return datos;
 }
 
+/* ========= CAMBIO 2: detectarTotal ========= */
+
 function detectarTotal(texto){
-  let m = texto.match(/total\s*(a\s*pagar)?\s*[$]?\s*([0-9.,]+)/i);
+  let m = texto.match(/(importe\s*a\s*pagar|total)\s*[$]?\s*([0-9.,]+)/i);
   return m ? m[2] : "No detectado";
 }
 
