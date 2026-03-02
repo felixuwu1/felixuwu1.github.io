@@ -4,7 +4,15 @@
 <h1 style="text-align: center;">Probabilidad y Estadística</h1>
     <p> resivo de luz </p>
       <div>
-    <input type = "file"  accept="application/pdf">
+    <input type = "file" id = "subir pdf" accept="application/pdf">
     <div id="resultado"></div>
+    <script>
+   let input = document.getElementById("subirPDF");
+
+   input.addEventListener("change", function(event) {
+      let archivo = event.target.files[0];
+      console.log(archivo);
+   });
+</script>
   </body> 
 </htlm>
