@@ -10,14 +10,62 @@
      <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script> 
      <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
    <script>
-      let input = document.getElementById("subirpdf");
 
-      console.log("Input detectado:", input);
+let input = document.getElementById("subirpdf");
+let resultado = document.getElementById("resultado");
 
-      input.addEventListener("change", function(event) {
-        let archivo = event.target.files[0];
-        console.log("Archivo cargado:", archivo);
-      });
-    </script>
+input.addEventListener("change", function(event) {
+
+    let archivo = event.target.files[0];
+    let reader = new FileReader();
+
+    reader.onload = function() {
+
+        let typedarray = new Uint8Array(this.result);
+
+        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+
+            pdf.getPage(1).then(function(page) {
+
+                let viewport = page.getViewport({ scale: 2 });
+                let canvas = document.createElement("canvas");
+                let context = canvas.getContext("2d");
+
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                let renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+
+                page.render(renderContext).promise.then(function() {
+
+                    resultado.innerText = "Escaneando con OCR... ⏳";
+
+                    Tesseract.recognize(
+                        canvas,
+                        'spa',   // español
+                        { logger: m => console.log(m) }
+                    ).then(({ data: { text } }) => {
+
+                        resultado.innerText = text;
+                        console.log("Texto OCR:", text);
+
+                    });
+
+                });
+
+            });
+
+        });
+
+    };
+
+    reader.readAsArrayBuffer(archivo);
+
+});
+
+</script>
   </body> 
  </html>
