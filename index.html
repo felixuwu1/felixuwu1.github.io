@@ -51,28 +51,19 @@ input.addEventListener("change", function(event) {
 
                         let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
                         let total = totalMatch ? totalMatch[1] : "No encontrado";
-                       let nombre = "No encontrado";
-
-let lineas = text.split("\n");
-
-for (let i = 0; i < lineas.length; i++) {
-
-    let linea = lineas[i].toUpperCase();
-
-    // Buscar donde aparece TOTAL A PAGAR
-    if (linea.includes("TOTAL") && linea.includes("PAGAR")) {
-
-        // El nombre normalmente está en las siguientes 3 líneas
-        for (let j = i + 1; j <= i + 3 && j < lineas.length; j++) {
-
-            let posibleNombre = lineas[j].trim().toUpperCase();
-
-            if (
-                posibleNombre.length > 15 &&
-                /[A-ZÁÉÍÓÚÑ]{5,}/.test(posibleNombre)
-            ) {
-                nombre = posibleNombre.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
-                break;
+                        let nombre = "No encontrado";
+                        let lineas = text.split("\n");
+                        for (let i = 0; i < lineas.length; i++) {
+                        let linea = lineas[i].toUpperCase();
+                        if (linea.includes("TOTAL") && linea.includes("PAGAR")) {
+                        for (let j = i + 1; j <= i + 3 && j < lineas.length; j++) {
+                        let posibleNombre = lineas[j].trim().toUpperCase();
+                          if (
+                            posibleNombre.length > 15 &&
+                            /[A-ZÁÉÍÓÚÑ]{5,}/.test(posibleNombre)
+                              ) {
+                         nombre = posibleNombre.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
+                      break;
             }
         }
 
