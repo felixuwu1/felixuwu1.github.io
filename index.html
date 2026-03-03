@@ -55,17 +55,16 @@ input.addEventListener("change", function(event) {
                         let lineas = text.split("\n");
 
                           for (let linea of lineas) {
-
                             let limpia = linea.trim().toUpperCase();
-
-                                if (
+                          if (
                             limpia.length > 15 &&
                             /[A-ZÁÉÍÓÚÑ]{5,}/.test(limpia) &&
                             !limpia.includes("TOTAL") &&
-                              !limpia.includes("PAGAR") &&
+                            !limpia.includes("PAGAR") &&
                             !limpia.includes("CFE") &&
                             !limpia.includes("SERVICIO")
-                                ) {
+                             !limpia.includes("COMISIÓN FEDERAL DE ELECTRICIDAD")  
+                              ) {
 
                             nombre = limpia.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
                               break;
