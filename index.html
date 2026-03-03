@@ -51,6 +51,7 @@ input.addEventListener("change", function(event) {
 
                         resultado.innerText = text;
                         console.log("Texto OCR:", text);
+                      let totalMatch = text.match(/Total\s*\$?\s*([\d,\.]+)/i);
 
                     });
 
