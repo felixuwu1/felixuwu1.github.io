@@ -51,19 +51,13 @@ input.addEventListener("change", function(event) {
 
                         let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
                         let total = totalMatch ? totalMatch[1] : "No encontrado";
-
-                        resultado.innerHTML = `
-                            <h3>Datos detectados:</h3>
-                            Total: ${total}
-                        `;
-        
                         let nombre = "No encontrado";
-                            let lineas = text.split("\n");
-                              for (let linea of lineas) {
-                                  let limpia = linea.trim();
-                                     if (/^[A-ZÁÉÍÓÚÑ\s]{15,}$/.test(limpia)) {
-                                        nombre = limpia;
-                                        break;
+                        let lineas = text.split("\n");
+                          for (let linea of lineas) {
+                          let limpia = linea.trim();
+                          if (/[A-ZÁÉÍÓÚÑ]{5,}/.test(limpia) && limpia.length > 15) {
+                          nombre = limpia.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
+                          break;
                             }
                         }
                                       resultado.innerHTML = `
