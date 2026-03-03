@@ -7,12 +7,15 @@
     <input type = "file" id = "subirpdf" accept = "application/pdf">
       <div id="resultado"></div>
       </div>
-    <script>
-       let input = document.getElementById("subirpdf");
-       input.addEventListener("change", function(event) {
-       let archivo = event.target.files[0];
-      console.log(archivo);
-     });
+   <script>
+      let input = document.getElementById("subirPDF");
+
+      console.log("Input detectado:", input);
+
+      input.addEventListener("change", function(event) {
+        let archivo = event.target.files[0];
+        console.log("Archivo cargado:", archivo);
+      });
     </script>
   </body> 
  </html>
