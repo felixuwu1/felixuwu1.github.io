@@ -5,14 +5,17 @@
     <p> resivo de luz </p>
       <div>
     <input type = "file" id = "subir pdf" accept="application/pdf">
-    <div id="resultado"></div>
+      <div id="resultado"></div>
+    <script src="(pdf.js real link aquí)"></script>
+    <script src="(tesseract.js real link aquí)"></script>
+
     <script>
    let input = document.getElementById("subirPDF");
 
    input.addEventListener("change", function(event) {
       let archivo = event.target.files[0];
       console.log(archivo);
-   });
-</script>
+     });
+    </script>
   </body> 
-</htlm>
+ </htlm>
