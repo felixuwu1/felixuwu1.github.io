@@ -56,6 +56,24 @@ input.addEventListener("change", function(event) {
                             <h3>Datos detectados:</h3>
                             Total: ${total}
                         `;
+        
+                        let nombre = "No encontrado";
+                            let lineas = text.split("\n");
+                              for (let linea of lineas) {
+                                  let limpia = linea.trim();
+                                     if (/^[A-ZÁÉÍÓÚÑ\s]{15,}$/.test(limpia)) {
+                                        nombre = limpia;
+                                        break;
+                            }
+                        }
+                                      resultado.innerHTML = `
+                                      <h3>Datos detectados:</h3>
+                                      <b>Nombre:</b> ${nombre} <br><br>
+                                      <b>Total a pagar:</b>
+                                      <div style="font-size:28px; font-weight:bold; color:green;">
+                                      $${total}
+                                      </div>
+                          `;
 
                     });
 
