@@ -53,6 +53,8 @@ input.addEventListener("change", function(event) {
                         console.log("Texto OCR:", text);
                       let totalMatch = text.match(/Total\s*\$?\s*([\d,\.]+)/i);
                       let total = totalMatch ? totalMatch[1] : "No encontrado";
+                      let totalMatch = text.match(/TOTAL\s*A\s*PAGAR\s*\$?\s*([\d,\.]+)/i);
+                      let total = totalMatch ? totalMatch[1] : "No encontrado";
                       resultado.innerHTML = `
                       <h3>Datos detectados:</h3>
                          Total: ${total}
