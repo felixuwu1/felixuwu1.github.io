@@ -41,7 +41,7 @@ input.addEventListener("change", function(event) {
 
                 page.render(renderContext).promise.then(function() {
 
-                    resultado.innerText = "Escaneando con OCR... ⏳";
+                    resultado.innerText = "Escaneando pdf";
 
                     Tesseract.recognize(canvas, 'spa')
                     .then(function(result) {
@@ -49,7 +49,7 @@ input.addEventListener("change", function(event) {
                         let text = result.data.text;
                         console.log("Texto OCR:", text);
 
-                        let totalMatch = text.match(/TOTAL\s*A\s*PAGAR[\s:\$]*([\d\.,]+)/i);
+                        let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
                         let total = totalMatch ? totalMatch[1] : "No encontrado";
 
                         resultado.innerHTML = `
