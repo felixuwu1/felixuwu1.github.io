@@ -9,7 +9,7 @@
       </div>
      <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script> 
      <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-   <script>
+<script>
 
 let input = document.getElementById("subirpdf");
 let resultado = document.getElementById("resultado");
@@ -43,21 +43,19 @@ input.addEventListener("change", function(event) {
 
                     resultado.innerText = "Escaneando con OCR... ⏳";
 
-                    Tesseract.recognize(
-                        canvas,
-                        'spa',   // español
-                        { logger: m => console.log(m) }
-                    ).then(({ data: { text } }) => {
+                    Tesseract.recognize(canvas, 'spa')
+                    .then(function(result) {
 
-                        resultado.innerText = text;
+                        let text = result.data.text;
                         console.log("Texto OCR:", text);
-                      let totalMatch = text.match(/T[O0]TAL\s*A\s*PAGAR[\s:\$]*([\d\.,]+)/i);
-                      let total = totalMatch ? totalMatch[1] : "No encontrado";
-                      resultado.innerHTML = `
-                      <h3>Datos detectados:</h3>
-                         Total: ${total}
-                                `;
-                          });
+
+                        let totalMatch = text.match(/TOTAL\s*A\s*PAGAR[\s:\$]*([\d\.,]+)/i);
+                        let total = totalMatch ? totalMatch[1] : "No encontrado";
+
+                        resultado.innerHTML = `
+                            <h3>Datos detectados:</h3>
+                            Total: ${total}
+                        `;
 
                     });
 
