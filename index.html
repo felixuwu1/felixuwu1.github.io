@@ -51,15 +51,26 @@ input.addEventListener("change", function(event) {
 
                         let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
                         let total = totalMatch ? totalMatch[1] : "No encontrado";
-                        let nombre = "No encontrado";
+                       let nombre = "No encontrado";
                         let lineas = text.split("\n");
+
                           for (let linea of lineas) {
-                          let limpia = linea.trim();
-                          if (/[A-ZÁÉÍÓÚÑ]{5,}/.test(limpia) && limpia.length > 15) {
-                          nombre = limpia.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
-                          break;
+
+                            let limpia = linea.trim().toUpperCase();
+
+                                if (
+                            limpia.length > 15 &&
+                            /[A-ZÁÉÍÓÚÑ]{5,}/.test(limpia) &&
+                            !limpia.includes("TOTAL") &&
+                              !limpia.includes("PAGAR") &&
+                            !limpia.includes("CFE") &&
+                            !limpia.includes("SERVICIO")
+                                ) {
+
+                            nombre = limpia.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
+                              break;
+                                }
                             }
-                        }
                                       resultado.innerHTML = `
                                       <h3>Datos detectados:</h3>
                                       <b>Nombre:</b> ${nombre} <br><br>
