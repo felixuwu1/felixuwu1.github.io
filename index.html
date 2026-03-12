@@ -1,8 +1,15 @@
+
+```html
 <!DOCTYPE html>
 <html>
 
 <head>
 <title>Probabilidad y Estadística</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body>
@@ -31,9 +38,7 @@ Y:<br>
 
 <h3 id="resultadoRegresion"></h3>
 
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+<canvas id="grafica"></canvas>
 
 <script>
 
@@ -131,6 +136,10 @@ reader.readAsArrayBuffer(archivo);
 
 
 
+let grafica = null;
+
+
+
 function calcular(){
 
 let x = document.getElementById("xdata").value.split(",").map(Number)
@@ -158,10 +167,64 @@ let b = (sumy - m*sumx)/n
 document.getElementById("resultadoRegresion").innerHTML =
 "y = " + m.toFixed(4) + "x + " + b.toFixed(4)
 
+
+
+let puntos = []
+
+for(let i=0;i<n;i++){
+puntos.push({x:x[i],y:y[i]})
+}
+
+
+
+let linea = []
+
+let minx = Math.min(...x)
+let maxx = Math.max(...x)
+
+linea.push({x:minx,y:m*minx+b})
+linea.push({x:maxx,y:m*maxx+b})
+
+
+
+if(grafica){
+grafica.destroy()
+}
+
+
+
+let ctx = document.getElementById("grafica").getContext("2d")
+
+grafica = new Chart(ctx,{
+type:'scatter',
+data:{
+datasets:[
+{
+label:'Datos',
+data:puntos
+},
+{
+label:'Recta de regresión',
+type:'line',
+data:linea,
+fill:false
+}
+]
+},
+options:{
+scales:{
+x:{
+type:'linear',
+position:'bottom'
+}
+}
+}
+})
+
 }
 
 </script>
 
 </body>
 </html>
-        
+```
