@@ -1,102 +1,21 @@
 <!DOCTYPE html>
 <html>
-  <body>
-<h1 style="text-align: center;"> Probabilidad y Estadística </h1>
-    <p> resibo de luz </p>
-      <div>
-    <input type = "file" id = "subirpdf" accept = "application/pdf">
-      <div id="resultado"></div>
-      </div>
-     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script> 
-     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
-<script>
 
-let input = document.getElementById("subirpdf");
-let resultado = document.getElementById("resultado");
-
-input.addEventListener("change", function(event) {
-
-    let archivo = event.target.files[0];
-    let reader = new FileReader();
-
-    reader.onload = function() {
-
-        let typedarray = new Uint8Array(this.result);
-
-        pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
-
-            pdf.getPage(1).then(function(page) {
-
-                let viewport = page.getViewport({ scale: 2 });
-                let canvas = document.createElement("canvas");
-                let context = canvas.getContext("2d");
-
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-
-                let renderContext = {
-                    canvasContext: context,
-                    viewport: viewport
-                };
-
-                page.render(renderContext).promise.then(function() {
-
-                    resultado.innerText = "Escaneando pdf";
-
-                    Tesseract.recognize(canvas, 'spa')
-                    .then(function(result) {
-
-                        let text = result.data.text;
-                        console.log("Texto OCR:", text);
-
-                        let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
-                        let total = totalMatch ? totalMatch[1] : "No encontrado";
-                        let nombre = "No encontrado";
-                        let lineas = text.split("\n");
-                        for (let i = 0; i < lineas.length; i++) {
-                        let linea = lineas[i].toUpperCase();
-                        if (linea.includes("TOTAL") && linea.includes("PAGAR")) {
-                        for (let j = i + 1; j <= i + 3 && j < lineas.length; j++) {
-                        let posibleNombre = lineas[j].trim().toUpperCase();
-                          if (
-                            posibleNombre.length > 15 &&
-                            /[A-ZÁÉÍÓÚÑ]{5,}/.test(posibleNombre)
-                              ) {
-                         nombre = posibleNombre.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, "").trim();
-                      break;
-            }
-        }
-
-        break;
-    }
-}
-                                      resultado.innerHTML = `
-                                      <h3>Datos detectados:</h3>
-                                      <b>Nombre:</b> ${nombre} <br><br>
-                                      <b>Total a pagar:</b>
-                                      $${total}
-                          `;
-
-                    });
-
-                });
-
-            });
-
-        });
-
-    };
-
-    reader.readAsArrayBuffer(archivo);
-
-});
-  <!DOCTYPE html>
-<html>
 <head>
-<title>Regresión Lineal</title>
+<title>Probabilidad y Estadística</title>
 </head>
 
 <body>
+
+<h1 style="text-align:center;">Probabilidad y Estadística</h1>
+
+<p>Recibo de luz</p>
+
+<input type="file" id="subirpdf" accept="application/pdf">
+
+<div id="resultadoOCR"></div>
+
+<hr>
 
 <h2>Calculadora de Regresión Lineal</h2>
 
@@ -110,9 +29,107 @@ Y:<br>
 
 <button onclick="calcular()">Calcular</button>
 
-<h3 id="resultado"></h3>
+<h3 id="resultadoRegresion"></h3>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
 
 <script>
+
+let input = document.getElementById("subirpdf");
+let resultadoOCR = document.getElementById("resultadoOCR");
+
+input.addEventListener("change", function(event) {
+
+let archivo = event.target.files[0];
+let reader = new FileReader();
+
+reader.onload = function() {
+
+let typedarray = new Uint8Array(this.result);
+
+pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+
+pdf.getPage(1).then(function(page) {
+
+let viewport = page.getViewport({ scale: 2 });
+let canvas = document.createElement("canvas");
+let context = canvas.getContext("2d");
+
+canvas.height = viewport.height;
+canvas.width = viewport.width;
+
+let renderContext = {
+canvasContext: context,
+viewport: viewport
+};
+
+page.render(renderContext).promise.then(function() {
+
+resultadoOCR.innerText = "Escaneando pdf...";
+
+Tesseract.recognize(canvas,'spa')
+.then(function(result){
+
+let text = result.data.text;
+
+let totalMatch = text.match(/Total\s*\$?\s*([\d\.]+)/i);
+let total = totalMatch ? totalMatch[1] : "No encontrado";
+
+let nombre = "No encontrado";
+
+let lineas = text.split("\n");
+
+for (let i = 0; i < lineas.length; i++) {
+
+let linea = lineas[i].toUpperCase();
+
+if (linea.includes("TOTAL") && linea.includes("PAGAR")) {
+
+for (let j = i + 1; j <= i + 3 && j < lineas.length; j++) {
+
+let posibleNombre = lineas[j].trim().toUpperCase();
+
+if (
+posibleNombre.length > 15 &&
+/[A-ZÁÉÍÓÚÑ]{5,}/.test(posibleNombre)
+) {
+
+nombre = posibleNombre.replace(/[^A-ZÁÉÍÓÚÑ\s]/g,"").trim();
+break;
+
+}
+
+}
+
+break;
+
+}
+
+}
+
+resultadoOCR.innerHTML = `
+<h3>Datos detectados</h3>
+<b>Nombre:</b> ${nombre} <br><br>
+<b>Total a pagar:</b> $${total}
+`;
+
+});
+
+});
+
+});
+
+});
+
+};
+
+reader.readAsArrayBuffer(archivo);
+
+});
+
+
 
 function calcular(){
 
@@ -127,22 +144,24 @@ let sumxy = 0
 let sumx2 = 0
 
 for(let i=0;i<n;i++){
-    sumx += x[i]
-    sumy += y[i]
-    sumxy += x[i]*y[i]
-    sumx2 += x[i]*x[i]
+
+sumx += x[i]
+sumy += y[i]
+sumxy += x[i]*y[i]
+sumx2 += x[i]*x[i]
+
 }
 
 let m = (n*sumxy - sumx*sumy)/(n*sumx2 - sumx*sumx)
 let b = (sumy - m*sumx)/n
 
-document.getElementById("resultado").innerHTML =
+document.getElementById("resultadoRegresion").innerHTML =
 "y = " + m.toFixed(4) + "x + " + b.toFixed(4)
 
 }
 
 </script>
 
-</script>
-  </body> 
- </html>
+</body>
+</html>
+        
