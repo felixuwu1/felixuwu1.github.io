@@ -90,6 +90,58 @@ input.addEventListener("change", function(event) {
     reader.readAsArrayBuffer(archivo);
 
 });
+  <!DOCTYPE html>
+<html>
+<head>
+<title>Regresión Lineal</title>
+</head>
+
+<body>
+
+<h2>Calculadora de Regresión Lineal</h2>
+
+<p>Introduce los datos separados por coma</p>
+
+X:<br>
+<input id="xdata" placeholder="1,2,3,4"><br><br>
+
+Y:<br>
+<input id="ydata" placeholder="2,3,5,4"><br><br>
+
+<button onclick="calcular()">Calcular</button>
+
+<h3 id="resultado"></h3>
+
+<script>
+
+function calcular(){
+
+let x = document.getElementById("xdata").value.split(",").map(Number)
+let y = document.getElementById("ydata").value.split(",").map(Number)
+
+let n = x.length
+
+let sumx = 0
+let sumy = 0
+let sumxy = 0
+let sumx2 = 0
+
+for(let i=0;i<n;i++){
+    sumx += x[i]
+    sumy += y[i]
+    sumxy += x[i]*y[i]
+    sumx2 += x[i]*x[i]
+}
+
+let m = (n*sumxy - sumx*sumy)/(n*sumx2 - sumx*sumx)
+let b = (sumy - m*sumx)/n
+
+document.getElementById("resultado").innerHTML =
+"y = " + m.toFixed(4) + "x + " + b.toFixed(4)
+
+}
+
+</script>
 
 </script>
   </body> 
